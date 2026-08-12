@@ -1,11 +1,11 @@
 # RoomTag — setup guide
 
-> **If you already deployed an earlier version:** this update changes the
-> security rules and the shape of the data. You'll need to (1) replace the
-> Firestore rules with the version in step 2 below, and (2) any trip
-> created before this update needs its roster re-added — old student codes
-> won't work with the new login system. Easiest path: delete any test
-> trips and recreate them after updating.
+> **If you already deployed an earlier version:** replace your Firestore
+> rules with the version in step 2 below — this update adds a rule for a
+> new `assignments` subcollection, and results won't load at all against
+> older rules. Any assignments generated before this update won't carry
+> over; just click **Generate** again once the new rules and `app.js` are
+> live. Rosters and login codes from the previous update are unaffected.
 
 This is a static site (plain HTML/JS — no server, no build step needed to run it)
 that talks to a free Firebase project for storage and login. Total cost at this
@@ -51,6 +51,12 @@ Two accounts needed, both free: a **Google account** (for Firebase) and a
            allow create, update: if true;
            allow delete: if request.auth != null;
          }
+
+         match /assignments/{doc} {
+           allow get: if (resource != null && resource.data.published == true) || request.auth != null;
+           allow list: if request.auth != null;
+           allow create, update, delete: if request.auth != null;
+         }
        }
      }
    }
@@ -60,9 +66,10 @@ Two accounts needed, both free: a **Google account** (for Firebase) and a
 
    **What this does:** the trip document itself (name, room list, locked
    status) is publicly readable so students can look up a trip by its trip
-   code — but it never contains anyone's private login code. Login codes
-   live in their own `logins` subcollection, where a specific code is only
-   readable if you already know its exact value; nobody can browse the
+   code — but it never contains anyone's private login code, and it no
+   longer contains room assignments either. Login codes live in their own
+   `logins` subcollection, where a specific code is only readable if you
+   already know its exact value; nobody can browse the
    full list of codes for a trip without being signed in as an
    administrator. The same pattern protects `requests`: a specific
    student's roommate picks are only readable or writable by whoever holds
@@ -70,7 +77,11 @@ Two accounts needed, both free: a **Google account** (for Firebase) and a
    requests can only be listed by an administrator. Nothing lets one
    student read or edit another student's submission, and nothing lets
    anyone browse the full roster of login codes, without being signed in
-   as an administrator.
+   as an administrator. Room assignments live in their own document with a
+   `published` flag: it's unreadable by anyone but an administrator until
+   you explicitly click "Publish results" in the Assignments tab, and every
+   time you regenerate, publishing resets so you always get a fresh look
+   before results go live again.
 
 ## 3. Turn on administrator login
 
