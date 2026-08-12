@@ -1,5 +1,12 @@
 # RoomTag — setup guide
 
+> **If you already deployed an earlier version:** this update changes the
+> security rules and the shape of the data. You'll need to (1) replace the
+> Firestore rules with the version in step 2 below, and (2) any trip
+> created before this update needs its roster re-added — old student codes
+> won't work with the new login system. Easiest path: delete any test
+> trips and recreate them after updating.
+
 This is a static site (plain HTML/JS — no server, no build step needed to run it)
 that talks to a free Firebase project for storage and login. Total cost at this
 scale: **$0**, forever, on Firebase's free "Spark" plan and GitHub Pages' free tier.
@@ -32,7 +39,13 @@ Two accounts needed, both free: a **Google account** (for Firebase) and a
          allow list: if request.auth != null;
          allow create, update, delete: if request.auth != null;
 
-         match /requests/{studentCode} {
+         match /logins/{loginCode} {
+           allow get: if true;
+           allow list: if request.auth != null;
+           allow create, update, delete: if request.auth != null;
+         }
+
+         match /requests/{loginCode} {
            allow get: if true;
            allow list: if request.auth != null;
            allow create, update: if true;
@@ -45,12 +58,19 @@ Two accounts needed, both free: a **Google account** (for Firebase) and a
 
    Click **Publish**.
 
-   **What this does:** anyone who already has a specific trip code can look up
-   that one trip (so students can log in) and submit their own roommate
-   request. Nobody can browse the full list of trips, edit a roster, lock
-   requests, generate assignments, or delete a trip without being signed in
-   as an administrator. This is a real, enforced security boundary — it
-   doesn't depend on hiding a link or a password inside the app.
+   **What this does:** the trip document itself (name, room list, locked
+   status) is publicly readable so students can look up a trip by its trip
+   code — but it never contains anyone's private login code. Login codes
+   live in their own `logins` subcollection, where a specific code is only
+   readable if you already know its exact value; nobody can browse the
+   full list of codes for a trip without being signed in as an
+   administrator. The same pattern protects `requests`: a specific
+   student's roommate picks are only readable or writable by whoever holds
+   that student's private login code, and the full list of everyone's
+   requests can only be listed by an administrator. Nothing lets one
+   student read or edit another student's submission, and nothing lets
+   anyone browse the full roster of login codes, without being signed in
+   as an administrator.
 
 ## 3. Turn on administrator login
 
